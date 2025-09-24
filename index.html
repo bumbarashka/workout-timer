@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Timer</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #2c3e50;
+            color: #ecf0f1;
+            margin: 0;
+            text-align: center;
+        }
+        .container {
+            padding: 2.5rem;
+            border-radius: 10px;
+            background: #34495e;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+            width: 90%;
+            max-width: 500px;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .input-group {
+            margin-bottom: 1rem;
+            text-align: left;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            background-color: #ecf0f1;
+            color: #2c3e50;
+        }
+        #exercise-number {
+            font-size: 1.8rem;
+            margin-top: 0.5rem;
+        }
+        #exercise-countdown {
+            font-size: 6rem;
+            font-weight: bold;
+            color: #2ecc71;
+            margin-bottom: 0.5rem;
+            letter-spacing: 2px;
+        }
+        #timer-display {
+            font-size: 3rem;
+            font-weight: bold;
+            margin-top: 1.5rem;
+            color: #e74c3c;
+            letter-spacing: 2px;
+        }
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+        }
+        button {
+            padding: 0.9rem 2rem;
+            font-size: 1.2rem;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #e67e22;
+            color: white;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #d35400;
+        }
+        button:disabled {
+            background-color: #95a5a6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Workout Timer</h1>
+        <div id="controls">
+            <div class="input-group">
+                <label for="totalTime">Total Time (in minutes):</label>
+                <input type="number" id="totalTime" value="20" min="1">
+            </div>
+            <div class="input-group">
+                <label for="numExercises">Number of Exercises:</label>
+                <input type="number" id="numExercises" value="5" min="1">
+            </div>
+            <div class="input-group">
+                <label for="initialDelay">Initial Delay (in seconds):</label>
+                <input type="number" id="initialDelay" value="10" min="0">
+            </div>
+            <button id="startButton">Start Workout</button>
+        </div>
+
+        <div id="delayDisplay" style="display:none;">
+            <h2>Get Ready!</h2>
+            <div id="delayCountdown" style="font-size: 6rem; font-weight: bold; color: #3498db;"></div>
+        </div>
+
+        <div id="display" style="display:none;">
+            <div id="exercise-number"></div>
+            <div id="exercise-countdown"></div>
+            <div id="timer-display"></div>
+            <div class="button-group">
+                <button id="pauseButton">Pause</button>
+                <button id="resumeButton" style="display: none;">Resume</button>
+            </div>
+        </div>
+        
+        <div id="completionMessage" style="display: none; padding-top: 2rem;">
+            <h2>Workout Complete! 🎉</h2>
+            <p>Total time: <span id="completedTime"></span></p>
+            <p>Exercises: <span id="completedExercises"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // DOM element references
+        const totalTimeInput = document.getElementById('totalTime');
+        const numExercisesInput = document.getElementById('numExercises');
+        const initialDelayInput = document.getElementById('initialDelay');
+        const startButton = document.getElementById('startButton');
+        const pauseButton = document.getElementById('pauseButton');
+        const resumeButton = document.getElementById('resumeButton');
+        const controlsDiv = document.getElementById('controls');
+        const displayDiv = document.getElementById('display');
+        const delayDisplayDiv = document.getElementById('delayDisplay');
+        const delayCountdownDisplay = document.getElementById('delayCountdown');
+        const timerDisplay = document.getElementById('timer-display');
+        const exerciseDisplay = document.getElementById('exercise-number');
+        const exerciseCountdownDisplay = document.getElementById('exercise-countdown');
+        const completionMessageDiv = document.getElementById('completionMessage');
+        const completedTimeSpan = document.getElementById('completedTime');
+        const completedExercisesSpan = document.getElementById('completedExercises');
+
+        let totalSeconds, totalTimeInitial, numExercisesInitial;
+        let timerInterval, delayInterval;
+        let exerciseMilestones = [];
+        let currentMilestoneIndex = 0;
+        let lastUpdateTime = Date.now();
+        let initialDelay;
+        let wakeLock = null;
+
+        // Create an audio context for the alert sound
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // 🔊 Function to play a simple beep alert
+        function playAlertSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(440, audioContext.currentTime);
+            gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.5);
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            oscillator.start();
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        // 🔒 Function to request a wake lock
+        const requestWakeLock = async () => {
+            if ('wakeLock' in navigator) {
+                try {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                    console.log('Wake Lock is active!');
+                } catch (err) {
+                    console.error(`${err.name}, ${err.message}`);
+                }
+            }
+        };
+
+        // 🔓 Function to release the wake lock
+        const releaseWakeLock = () => {
+            if (wakeLock) {
+                wakeLock.release();
+                wakeLock = null;
+                console.log('Wake Lock is released!');
+            }
+        };
+
+        // ⏱️ Function to update the main timer
+        function updateMainTimer() {
+            const totalMinutes = Math.floor(totalSeconds / 60);
+            const totalSecs = totalSeconds % 60;
+            const displayMinutes = String(totalMinutes).padStart(2, '0');
+            const displaySeconds = String(totalSecs).padStart(2, '0');
+            timerDisplay.textContent = `${displayMinutes}:${displaySeconds}`;
+        }
+        
+        // ⏱️ Function to update the secondary exercise countdown
+        function updateExerciseCountdown() {
+            const nextMilestone = (currentMilestoneIndex < exerciseMilestones.length) ? exerciseMilestones[currentMilestoneIndex] : 0;
+            const secondsRemainingInExercise = totalSeconds - nextMilestone;
+            
+            const minutes = Math.floor(secondsRemainingInExercise / 60);
+            const seconds = secondsRemainingInExercise % 60;
+            
+            const displayMinutes = String(minutes).padStart(2, '0');
+            const displaySeconds = String(seconds).padStart(2, '0');
+            
+            exerciseCountdownDisplay.textContent = `${displayMinutes}:${displaySeconds}`;
+        }
+
+        // ▶️ Function to start or resume the timer countdown
+        function startCountdown() {
+            requestWakeLock();
+            lastUpdateTime = Date.now();
+            timerInterval = setInterval(() => {
+                const now = Date.now();
+                const delta = Math.round((now - lastUpdateTime) / 1000);
+                totalSeconds -= delta;
+                lastUpdateTime = now;
+
+                updateMainTimer();
+                updateExerciseCountdown();
+
+                if (totalSeconds <= 0) {
+                    clearInterval(timerInterval);
+                    releaseWakeLock();
+                    timerDisplay.textContent = "00:00";
+                    displayDiv.style.display = 'none';
+                    completionMessageDiv.style.display = 'block';
+                    completedTimeSpan.textContent = `${totalTimeInitial} minutes`;
+                    completedExercisesSpan.textContent = `${numExercisesInitial}`;
+                    return;
+                }
+                
+                if (currentMilestoneIndex < exerciseMilestones.length && totalSeconds <= exerciseMilestones[currentMilestoneIndex]) {
+                    currentMilestoneIndex++;
+                    exerciseDisplay.textContent = `Exercise ${currentMilestoneIndex + 1} of ${numExercisesInitial}`;
+                    playAlertSound();
+                }
+            }, 1000);
+        }
+        
+        // ⏰ Function to handle the initial delay
+        function startInitialDelay() {
+            requestWakeLock();
+            controlsDiv.style.display = 'none';
+            delayDisplayDiv.style.display = 'block';
+            let delaySeconds = initialDelay;
+            delayCountdownDisplay.textContent = delaySeconds;
+            playAlertSound();
+
+            delayInterval = setInterval(() => {
+                delaySeconds--;
+                delayCountdownDisplay.textContent = delaySeconds;
+
+                if (delaySeconds <= 0) {
+                    clearInterval(delayInterval);
+                    delayDisplayDiv.style.display = 'none';
+                    displayDiv.style.display = 'block';
+                    exerciseDisplay.textContent = `Exercise 1 of ${numExercisesInitial}`;
+                    playAlertSound();
+                    updateMainTimer();
+                    updateExerciseCountdown();
+                    startCountdown();
+                }
+            }, 1000);
+        }
+
+        // 🚀 Function to begin the workout from scratch
+        function startWorkout() {
+            totalTimeInitial = parseInt(totalTimeInput.value);
+            numExercisesInitial = parseInt(numExercisesInput.value);
+            initialDelay = parseInt(initialDelayInput.value);
+
+            if (isNaN(totalTimeInitial) || totalTimeInitial < 1 || isNaN(numExercisesInitial) || numExercisesInitial < 1 || isNaN(initialDelay) || initialDelay < 0) {
+                alert("Please enter valid positive numbers for total time and exercises, and a non-negative number for the delay.");
+                return;
+            }
+
+            totalSeconds = totalTimeInitial * 60;
+            const intervalDuration = totalSeconds / numExercisesInitial;
+            
+            exerciseMilestones = [];
+            for (let i = 1; i < numExercisesInitial; i++) {
+                const milestoneTime = totalSeconds - Math.round(intervalDuration * i);
+                if (milestoneTime > 0) {
+                    exerciseMilestones.push(milestoneTime);
+                }
+            }
+            
+            currentMilestoneIndex = 0;
+
+            startInitialDelay();
+        }
+
+        // ⏸️ Function to pause the timer
+        function pauseTimer() {
+            clearInterval(timerInterval);
+            releaseWakeLock();
+            pauseButton.style.display = 'none';
+            resumeButton.style.display = 'inline-block';
+        }
+
+        // ▶️ Function to resume the timer
+        function resumeTimer() {
+            startCountdown();
+            pauseButton.style.display = 'inline-block';
+            resumeButton.style.display = 'none';
+        }
+
+        // Event listeners
+        startButton.addEventListener('click', startWorkout);
+        pauseButton.addEventListener('click', pauseTimer);
+        resumeButton.addEventListener('click', resumeTimer);
+    </script>
+</body>
+</html>
