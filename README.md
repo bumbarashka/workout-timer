@@ -2,7 +2,11 @@
 
 A simple, single-file HTML, CSS, and JavaScript web page that provides a highly configurable workout timer. It's designed to be used directly in your web browser without the need for a server or complex setup, making it perfect for quick, personalized workouts.
 
------
+## Live Demo
+
+You can try the timer live right now\!
+
+[**View the Timer on GitHub Pages**](https://www.google.com/search?q=https://bumbarashka.github.io/workout-timer/index.html)
 
 ## Features
 
@@ -13,8 +17,6 @@ A simple, single-file HTML, CSS, and JavaScript web page that provides a highly 
   * **Pause & Resume**: Offers a simple interface to pause and resume the workout at any point.
   * **Workout Completion Summary**: After the workout ends, a clear summary is displayed showing the total time and number of exercises completed.
   * **Prevents Screen Dimming**: Uses the browser's **Wake Lock API** to ensure your screen remains on and active while the timer is running, preventing interruptions from power-saving modes.
-
------
 
 ## How to Use
 
@@ -30,8 +32,6 @@ A simple, single-file HTML, CSS, and JavaScript web page that provides a highly 
       * **Initial Delay (D)**: Set a preparation time in seconds to allow you to get ready.
 4.  **Start the Timer**:
     Click the **Start Workout** button to begin the countdown.
-
------
 
 ## Technical Details
 
