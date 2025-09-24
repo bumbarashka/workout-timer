@@ -6,7 +6,7 @@ A simple, single-file HTML, CSS, and JavaScript web page that provides a highly 
 
 You can try the timer live right now\!
 
-[**View the Timer on GitHub Pages**](https://www.google.com/search?q=https://bumbarashka.github.io/workout-timer/index.html)
+[**View the Timer on GitHub Pages**](https://bumbarashka.github.io/workout-timer/index.html)
 
 ## Features
 
